@@ -3130,6 +3130,62 @@ describe('auth unit test', () => {
 			spyon5.mockClear();
 		});
 
+		test('get user data error because user has an invalid access token', async () => {
+			const auth = new Auth(authOptions);
+			const user = new CognitoUser({
+				Username: 'username',
+				Pool: userPool,
+			});
+
+			const spyon = jest
+				.spyOn(CognitoUserPool.prototype, 'getCurrentUser')
+				.mockImplementation(() => {
+					return user;
+				});
+			const spyon2 = jest
+				.spyOn(CognitoUser.prototype, 'getSession')
+				.mockImplementation(callback => {
+					return callback(null, session);
+				});
+			const spyon3 = jest
+				.spyOn(CognitoUser.prototype, 'getUserData')
+				.mockImplementationOnce(callback => {
+					callback(
+						{
+							message: 'Invalid access token.',
+						},
+						null
+					);
+				});
+
+			const spyon4 = jest
+				.spyOn(CognitoUserSession.prototype, 'getAccessToken')
+				.mockImplementationOnce(() => {
+					return new CognitoAccessToken({ AccessToken: 'accessToken' });
+				});
+
+			const spyon5 = jest
+				.spyOn(CognitoAccessToken.prototype, 'decodePayload')
+				.mockImplementation(() => {
+					return { scope: USER_ADMIN_SCOPE };
+				});
+
+			expect.assertions(1);
+			try {
+				await auth.currentUserPoolUser();
+			} catch (e) {
+				expect(e).toEqual({
+					message: 'Invalid access token.',
+				});
+			}
+
+			spyon.mockClear();
+			spyon2.mockClear();
+			spyon3.mockClear();
+			spyon4.mockClear();
+			spyon5.mockClear();
+		});
+
 		test('bypass the error if the user is not deleted or disabled', async () => {
 			const auth = new Auth(authOptions);
 			const user = new CognitoUser({
